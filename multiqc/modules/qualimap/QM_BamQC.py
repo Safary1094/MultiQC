@@ -560,10 +560,12 @@ def _calculate_bases_within_thresholds(bases_by_depth, total_size, depth_thresho
             bases_within_threshs[dt[c]] = bases_within_threshs[dt[c - 1]]
         if depth >= dt[c]:
             bases_within_threshs[dt[c]] += bases_by_depth[depth]
+    rate = 0
     for t in dt:
         bs = bases_within_threshs[t]
         if total_size > 0:
-            rate = 100.0 * bases_within_threshs[t] / total_size
-            assert rate <= 100, 'Error: rate is > 1: rate = ' + str(rate) + ', bases = ' + str(bs) + ', size = ' + str(total_size)
+            if bs:
+                rate = 100.0 * bs / total_size
+                assert rate <= 100, 'Error: rate is > 1: rate = ' + str(rate) + ', bases = ' + str(bs) + ', size = ' + str(total_size)
             rates_within_threshs[t] = rate
     return rates_within_threshs
