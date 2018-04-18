@@ -123,6 +123,9 @@ setup(
             'theta2 = multiqc.modules.theta2:MultiqcModule',
             'tophat = multiqc.modules.tophat:MultiqcModule',
             'trimmomatic = multiqc.modules.trimmomatic:MultiqcModule',
+            'RNAseqDE = multiqc.modules.RNAseqDE:MultiqcModule',
+            'RNAseqQC = multiqc.modules.RNAseqQC:MultiqcModule',
+            'RNAseqFA = multiqc.modules.RNAseqFA:MultiqcModule',
             'vcftools = multiqc.modules.vcftools:MultiqcModule'
         ],
         'multiqc.templates.v1': [

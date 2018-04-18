@@ -420,3 +420,12 @@ module_order:
             - RNA
             - DNA
             - methylation
+    - RNAseqDE:
+        module_tag:
+            - RNA
+    - RNAseqQC:
+        module_tag:
+            - RNA
+    - RNAseqFA:
+        module_tag:
+            - RNA

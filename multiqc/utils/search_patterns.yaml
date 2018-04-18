@@ -381,3 +381,20 @@ vcftools/tstv_by_qual:
     fn: '*.TsTv.qual'
 vcftools/tstv_summary:
     fn: '*.TsTv.summary'
+RNAseqDE:
+    - fn: 'de_gene_key.csv'
+    - fn: 'RNA_HM.csv'
+RNAseqFA:
+    - fn: 'pathway_table.csv'
+RNAseqQC:
+    - fn: 'corMatrix.csv'
+    - fn: 'gene.est.csv'
+    - fn: 'gene.final.csv'
+    - fn: 'gene.fitted.csv'
+    - fn: 'normalizedCounts.csv'
+    - fn: 'combined.counts'
+    - fn: 'rawCounts.csv'
+    - fn: 'rlog.csv'
+    - fn: 'tpm.csv'
+    - fn: 'vst.csv'
+    - fn: 'pca.csv'
