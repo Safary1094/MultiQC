@@ -44,19 +44,17 @@ class MultiqcModule(BaseMultiqcModule):
             if f['s_name'] == 'pca':
                 pca_data = pd.read_csv(join(dirpath, fname))
 
-        if not all(v in locals() for v in ['raw_counts', 'norm_counts', 'raw_data',  'pca_data']):
-            print('not all files for QC is received')
-        else:
-            col_names = list(raw_counts)[1:]
-            group_num = len(col_names)
 
-            raw_counts['sum'] = raw_counts.sum(axis=1)
+        col_names = list(raw_counts)[1:]
+        group_num = len(col_names)
 
-            self.plot_correlation_heatmap(raw_counts, norm_counts, col_names, group_num)
-            #self.plot_mean_sd(raw_counts, norm_counts, col_names, group_num, vst, rlog, combined_counts)
-            #self.plot_disp_ests(combined_counts, genes_est,genes_final,genes_fitted)
-            self.plot_covariates(raw_data)
-            self.plot_pca(pca_data)
+        raw_counts['sum'] = raw_counts.sum(axis=1)
+
+        self.plot_correlation_heatmap(raw_counts, norm_counts, col_names, group_num)
+        #self.plot_mean_sd(raw_counts, norm_counts, col_names, group_num, vst, rlog, combined_counts)
+        #self.plot_disp_ests(combined_counts, genes_est,genes_final,genes_fitted)
+        self.plot_covariates(raw_data)
+        self.plot_pca(pca_data)
 
     def plot_pca(self, pca_data):
         standard_colors = [
