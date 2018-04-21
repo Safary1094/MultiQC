@@ -196,40 +196,53 @@ class MultiqcModule(BaseMultiqcModule):
         cy_style = 'style: ['
         elem = 'elements: ['
 
-        btnHtml = ''
+        btnGroup = ''
         btnFun = ''
         hidGr = ''
+        firstBtn_id = ''
 
-        first_graph_id=''
 
         for contrast_name in all_pw_dir:
             pw_dir = all_pw_dir[contrast_name]
 
             pw_list = pw[contrast_name].index.tolist()
-
+            btnGroup += '<li><p >' + contrast_name + '</p>'
             for pw_it in pw_list:
                 pw_name = str(pw_it)
 
                 graph_id = contrast_name + '_' + pw_name
-                first_graph_id = graph_id
                 print('generating graph for')
                 print([pw_name, graph_id, pw_dir])
                 new_elem, new_cy_style = self.single_graph_code(pw_name, graph_id, pw_dir)
 
                 if new_elem != '':
 
+                    if len(btnFun)==0:
+                        firstBtn_id = graph_id
+
                     elem += new_elem + '\n'
                     cy_style += new_cy_style + '\n'
 
-                    btnHtml += '<button id="' + graph_id + '" onclick="show_' + graph_id + '()" class="inact">' + graph_id + '</button>'
+                    btnGroup += '<button id="' + graph_id + '" onclick="show_' + graph_id + '()" class="inact">' + pw_name + '</button>'
                     hidGr += 'var hid_' + graph_id + ' = cy.remove(".graph_' + graph_id + '");'
                     btnFun += 'function show_' + graph_id + '(){ cy.remove(":inside"); hid_' + graph_id + '.restore(); \
-                            var x = document.getElementsByClassName("act"); var i; for (i = 0; i < x.length; i++)  \
-                              { x[i].className = "inact";} document.getElementById("' + graph_id + '").className = "act";    };'
+                            var x = document.getElementsByClassName("act"); var i; for (i = 0; i < x.length; i++)  { x[i].className = "inact";} \
+                            var x = document.getElementsByClassName("preact"); var i; for (i = 0; i < x.length; i++)  { x[i].className = "inact";} '
+
+                    for c in [*all_pw_dir]:
+                        btnFun += 'document.getElementById("' + c + '_' + pw_name + '").className = "preact"; '
+
+                    btnFun += 'document.getElementById("' + graph_id + '").className = "act";    };'
+
+
+
+
+            btnGroup += '</li>'
 
         # remove last character: ','
         elem = elem[:-1]
         cy_style = cy_style[:-1]
+        btnGroup = btnGroup[:-5]
 
         elem += ']'
         cy_style += ']'
@@ -237,13 +250,14 @@ class MultiqcModule(BaseMultiqcModule):
         cyto_scape_path = '<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.2.7/cytoscape.js"></script>'
         div_style = "<style> #cy { width: 100%; height: 900px; position: relative; top: 0px; left: 0px; } </style>"
         btn_style = '<style>.inact {  font-size: 14px; margin: 2px;   background-color: #e7e7e7;    border: none;    color: black;    padding: 6px 32px;    text-align: center;    text-decoration: none;    display: inline-block;} \
+                            .preact {  font-size: 14px;  margin: 2px;  background-color: #d0f0c0;    border: none;    color: black;    padding: 6px 32px;    text-align: center;    text-decoration: none;    display: inline-block; } \
                              .act {  font-size: 14px;  margin: 2px;  background-color: #4CAF50;    border: none;    color: white;    padding: 6px 32px;    text-align: center;    text-decoration: none;    display: inline-block; }</style>'
         layout = 'layout: {    name: "preset"  }'
 
-        open_first_graph = 'hid_' + first_graph_id + '.restore(); document.getElementById("' + first_graph_id + '").className = "act";'
+        open_first_graph = 'window.onload=show_'+firstBtn_id+';'
 
         # construct graph html
-        graph_html = div_style + btn_style + btnHtml + '<div id="cy"></div>' + cyto_scape_path + \
+        graph_html = div_style + btn_style + btnGroup + '<div id="cy"></div>' + cyto_scape_path + \
                      '<script> var cy = cytoscape({container: document.getElementById("cy"), ' + \
                      'minZoom: 0.5, maxZoom: 2,' + \
                      elem + ',' + layout + ',' + cy_style + ' });' + hidGr + btnFun + open_first_graph + '</script>'
