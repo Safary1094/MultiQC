@@ -398,3 +398,4 @@ RNAseqQC:
     - fn: 'tpm.csv'
     - fn: 'vst.csv'
     - fn: 'pca.csv'
+    - fn: 'gene2biotype.csv'

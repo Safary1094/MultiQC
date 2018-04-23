@@ -4,10 +4,9 @@
 """ MultiQC module to parse output from bcbioRNASeq Quality control """
 
 from multiqc.modules.base_module import BaseMultiqcModule
-from collections import OrderedDict
+import plotly as py
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
+import plotly.graph_objs as go
 
 import scipy.stats as st
 from multiqc.plots import scatter, heatmap
@@ -43,6 +42,10 @@ class MultiqcModule(BaseMultiqcModule):
                 # print(raw_data.head())
             if f['s_name'] == 'pca':
                 pca_data = pd.read_csv(join(dirpath, fname))
+            if f['s_name'] == 'tpm':
+                tpm = pd.read_csv(join(dirpath, fname),index_col=[0])
+            if f['s_name'] == 'gene2biotype':
+                biotype = pd.read_csv(join(dirpath, fname),index_col=[0])
 
 
         col_names = list(raw_counts)[1:]
@@ -55,6 +58,7 @@ class MultiqcModule(BaseMultiqcModule):
         #self.plot_disp_ests(combined_counts, genes_est,genes_final,genes_fitted)
         self.plot_covariates(raw_data)
         self.plot_pca(pca_data)
+        self.tpm_perbiotype(tpm,biotype)
 
     def plot_pca(self, pca_data):
         standard_colors = [
@@ -163,4 +167,76 @@ class MultiqcModule(BaseMultiqcModule):
             description = 'This heatmap shows Pearson`s correlation values between groups.',
             helptext = 'Inter-correlation analysis (ICA) is another way to look at how well samples cluster by plotting the correlation between the expression profiles of the samples. Pearson`s correlation coefficient is a measure of how well your data would be fitted by a linear regression.',
             plot = hm_html
+        )
+
+    def tpm_perbiotype(self, tpm, biotype):
+        samples = list(tpm)
+
+        biotype_dict = biotype.gene_biotype.to_dict()
+
+        biotype_list = []
+        for gene in tpm.index.tolist():
+            if gene in biotype_dict:
+                biotype_list.append(biotype_dict[gene])
+            else:
+                # print('Warning! ' + gene + ' not in biotype_dict')
+                biotype_list.append('NA')
+
+        se = pd.Series(biotype_list)
+
+
+
+        tpm.insert(0, 'biotype', se.values)
+        tpm = tpm.dropna()
+
+        types = set(tpm.biotype.tolist())
+        groupped = tpm.groupby(by='biotype')
+        tpm_per_biotype_per_sample = {}
+
+        for type in types:
+            g = groupped.get_group(type)
+            tpm_per_sample = {}
+            for sample in samples:
+                tpm_per_sample[sample] = g[sample].tolist()
+
+            tpm_per_biotype_per_sample[type] = tpm_per_sample
+
+        layout = go.Layout(
+            yaxis=dict(
+                type='log',
+                autorange=True,
+
+            ),
+            showlegend=False
+        )
+        link = []
+        for sample in samples:
+            print(sample)
+            data = []
+            for type in types:
+                data.append(go.Box(y=tpm_per_biotype_per_sample[type][sample], name=type))
+
+            fig = go.Figure(data=data, layout=layout)
+            fig['layout'].update(title=sample)
+
+            incl=False
+            if len(link)==0:
+                incl=True
+            link.append(py.offline.plot(fig, auto_open=False, output_type='div', include_plotlyjs=incl, image_width=800))
+
+        print(link[1])
+
+        html_string = '''
+        <html>'''
+
+        for l in link:
+            print(l)
+            html_string += '''<div style="width:50%; height:450px; display:inline-block" frameborder="0" seamless="seamless" scrolling="no">''' + l + '''</div>'''
+
+        html_string += '''</html>'''
+
+        self.add_section (
+            name = 'TPM per biotype',
+            anchor = 'TPM_per_biotype',
+            plot = html_string
         )
