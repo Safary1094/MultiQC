@@ -2,7 +2,8 @@
 
 """ MultiQC module to add link to Bcl2fastq reports """
 
-import logging
+import plotly as py
+import plotly.graph_objs as go
 from os.path import join, dirname, abspath
 import pandas as pd
 import numpy as np
@@ -107,30 +108,27 @@ class MultiqcModule(BaseMultiqcModule):
 
     def addTopGenes(self, de):
 
-        tab_header_volcano = '<ul>'
-        tab_content_volcano = '<div>'
+        tab_header = '<ul>'
+        tab_content = '<div>'
 
         for c in de:
+            print(de[c].head())
+            print(list(de[c]))
             de[c] = de[c].drop('gene_id', axis=1)
 
             de[c].sort_values(by='p', inplace=True, ascending=False)
             top = de[c][0:20]
-            top = top.set_index('gene')
+            # top = top.set_index('gene')
 
-            headers = OrderedDict()
-            headers['p'] = {'title': 'log10 p-value adjusted'}
-            headers['lfc'] = {'title': 'log2 FoldChange'}
+            tab_header += '<li>' + c + '</li>'
 
-            tab_header_volcano += '<li>' + c + '</li>'
 
-            table_config = {'col1_header': 'Gene Name'}
-            mqc_table = table.plot(top.to_dict(orient='index'), headers, table_config)
-            tab_content_volcano += '<div>' + mqc_table + '</div>'
+            tab_content += '<div>' + top.to_html(columns=['gene', 'p', 'lfc', 'baseMean'],classes = 'de_top', index=False) + '</div>'
 
-        tab_header_volcano += '</ul>'
-        tab_content_volcano += '</div>'
+        tab_header += '</ul>'
+        tab_content += '</div>'
 
-        html_table = '<div class="tabs">' + tab_header_volcano + tab_content_volcano + '</div>'
+        html_table = '<div class="tabs">' + tab_header + tab_content + '</div>'
 
         style_file = open(join(dirname(abspath(__file__)), "style.txt"), 'r')
         style = style_file.read()
@@ -141,33 +139,64 @@ class MultiqcModule(BaseMultiqcModule):
         self.add_section(
             name='Top DE genes',
             anchor='Top DE genes',
-            content=style +'\n'+ script+'\n' + html_table+'\n' + '<script> $(document).ready(function(){ $(".tabs").lightTabs(); }); </script>',
+            content=style + '\n' + script + '\n' + html_table + '\n' + '<script> $(document).ready(function(){ $(".tabs").lightTabs(); }); </script>',
         )
 
-    def addBaseMeanPlot(self, ata_key):
-        data1 = {
-            'sample 1': {
-                'x': 1,
-                'y': 1
-            }}
-        data2 = {'sample 2': {
-            'x': 2,
-            'y': 3
-        }
-        }
+    def addBaseMeanPlot(self, de):
 
-        config = {
-            'data_labels': [
-                {'name': 'rlog', 'ylab': 'rlog'},
-                {'name': 'vst', 'ylab': 'vst'}]}
+        data = []
+        buttons = []
+        i=0
+        first_title=''
+        for c in de:
+            vis=False
+            if i==0:
+                first_title = c
+                vis = True
 
-        html_content = scatter.plot([data1, data2], config)
+            data.append(go.Scatter(x=de[c]['baseMean'].tolist(),
+                                   y=de[c]['lfc'].tolist(),
+                                   mode = 'markers',
+                                   text=de[c]['gene'].tolist(),
+                                   name='shrunken',
+                                   marker={'color':'#33CFA5'},
+                                   visible=vis))
+
+            data.append(go.Scatter(x=de[c]['baseMean'].tolist(),
+                                   y=de[c]['lfc_un'].tolist(),
+                                   mode = 'markers',
+                                   text=de[c]['gene'].tolist(),
+                                   name='unshrunken',
+                                   marker={'color': '#F06A6A'},
+                                   visible=vis))
+
+            vis_list = [False] * 2 * len(de)
+            vis_list[i * 2]=True
+            vis_list[i * 2 + 1] = True
+
+            i+=1
+
+            buttons.append({'label':c, 'method':'update', 'args':[{'visible':vis_list},{'title':c}]})
+
+        updatemenus = [{'type':"buttons",
+                        'active':-1,
+                        'buttons':buttons}]
+
+
+
+        layout = go.Layout(xaxis=dict(type='log', autorange=True, title='Mean counts'),
+                           yaxis=dict(title='Log2 Fold change'),
+                           height=700,
+                           updatemenus=updatemenus,
+                           title=first_title)
+        fig = go.Figure(data=data, layout=layout)
+
+        tab_content = py.offline.plot(fig, auto_open=False, output_type='div', include_plotlyjs=False)
 
         self.add_section(
-            name='MeanAverage',
-            anchor='MeanAverage',
-            content=html_content,
-            description='Each dot at meanAverage plot copares corresponding gene mean expression across all samples and fold change between tested groups. Dots marked with green corresponds to genes with high evidence in differential expression between tested groups (-log10 p-value greater than 1)'
+            name='MA plot',
+            anchor='MA plot',
+            content=tab_content
         )
 
     def __init__(self):
@@ -191,6 +220,7 @@ class MultiqcModule(BaseMultiqcModule):
             self.addNumDE_perContrast(de)
             self.addDE_overlap(de)
             self.addTopGenes(de)
+            self.addBaseMeanPlot(de)
 
 
 

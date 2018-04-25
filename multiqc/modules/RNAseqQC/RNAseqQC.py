@@ -10,7 +10,6 @@ import plotly.graph_objs as go
 
 import scipy.stats as st
 from multiqc.plots import scatter, heatmap
-from math import log2, log10
 import logging
 from os.path import join
 
@@ -41,11 +40,12 @@ class MultiqcModule(BaseMultiqcModule):
                 raw_data = pd.read_csv(join(dirpath, fname))
                 # print(raw_data.head())
             if f['s_name'] == 'pca':
-                pca_data = pd.read_csv(join(dirpath, fname))
+                pca_data = pd.read_csv(join(dirpath, fname), index_col=[0])
             if f['s_name'] == 'tpm':
                 tpm = pd.read_csv(join(dirpath, fname),index_col=[0])
             if f['s_name'] == 'gene2biotype':
                 biotype = pd.read_csv(join(dirpath, fname),index_col=[0])
+
 
 
         col_names = list(raw_counts)[1:]
@@ -61,34 +61,32 @@ class MultiqcModule(BaseMultiqcModule):
         self.tpm_perbiotype(tpm,biotype)
 
     def plot_pca(self, pca_data):
-        standard_colors = [
-            '#0000FF', '#008000', '#FFA500', '#FF00FF', '#CCCC00', '#800000',
-            '#00CCCC', '#808080', '#800080', '#808000', '#000080', '#008080', '#00FF00',]
 
-        color_by_sam = {}
-        for i in pca_data.index.tolist():
-            pca_data.at[i, 'color'] = standard_colors[i % len(standard_colors)]
-            color_by_sam[pca_data.at[i, 'name']] = standard_colors[i % len(standard_colors)]
+        print(pca_data)
+        data =[]
+        for name, row in pca_data.iterrows():
+            data.append(go.Scatter(x=[row['pc1']],
+                                   y=[row['pc2']],
+                                   mode = 'markers',
+                                   marker={'size': 10},
+                                   text=[name],
+                                   name=name))
 
-        pca_data = pca_data.set_index('rowname')
-        pca_data = pca_data[['pc1', 'pc2', 'name', 'color']]
-        pca_data = pca_data.rename(columns = {'pc1':'x', 'pc2':'y'})
+        layout = go.Layout(height=700)
 
-        # color_by_sam = pd.DataFrame(pca_data['color'])
-        # color_by_sam = color_by_sam.to_dict('index')
 
-        pca_data = pca_data.to_dict('index')
 
-        pconfig = {'colors': color_by_sam}
+        fig = go.Figure(data=data, layout=layout)
+
+        tab_content = py.offline.plot(fig, auto_open=False, output_type='div', include_plotlyjs=True)
 
         self.add_section (
             name = 'PCA plot',
             anchor = 'pca',
             description = 'PCA is a popular method that is based on the principles of dimensional reduction. Below is a PCA plot of the samples within the space of the first two principal components that explain the most variation in the data. These were calculated using the read counts of the top 1000 most variable genes within the dataset.',
 
-            plot = scatter.plot(pca_data, pconfig)
+            content = tab_content
         )
-
 
     def plot_covariates(self, raw_data):
 
@@ -137,9 +135,7 @@ class MultiqcModule(BaseMultiqcModule):
             plot = hm_html
         )
 
-
     def plot_correlation_heatmap(self, raw_counts, norm_counts, col_names, group_num):
-
         norm_counts = norm_counts[raw_counts['sum'] > 0]
         hmdata = [[st.pearsonr(norm_counts[col_names[i]], norm_counts[col_names[j]])[0]
                     for i in range(group_num)] for j in range(group_num)]
@@ -201,14 +197,7 @@ class MultiqcModule(BaseMultiqcModule):
 
             tpm_per_biotype_per_sample[type] = tpm_per_sample
 
-        layout = go.Layout(
-            yaxis=dict(
-                type='log',
-                autorange=True,
-
-            ),
-            showlegend=False
-        )
+        layout = go.Layout(yaxis=dict(type='log', autorange=True, ), showlegend=False, height = 500)
         link = []
         for sample in samples:
             print(sample)
@@ -219,24 +208,17 @@ class MultiqcModule(BaseMultiqcModule):
             fig = go.Figure(data=data, layout=layout)
             fig['layout'].update(title=sample)
 
-            incl=False
-            if len(link)==0:
-                incl=True
-            link.append(py.offline.plot(fig, auto_open=False, output_type='div', include_plotlyjs=incl, image_width=800))
 
-        print(link[1])
+            link.append(py.offline.plot(fig, auto_open=False, output_type='div', include_plotlyjs=False))
 
-        html_string = '''
-        <html>'''
-
+        html_string=''
         for l in link:
-            print(l)
-            html_string += '''<div style="width:50%; height:450px; display:inline-block" frameborder="0" seamless="seamless" scrolling="no">''' + l + '''</div>'''
+            html_string += '''<div style="width:50%; display:inline-block" frameborder="0" seamless="seamless" scrolling="no">''' + l + '''</div>'''
 
-        html_string += '''</html>'''
+
 
         self.add_section (
             name = 'TPM per biotype',
             anchor = 'TPM_per_biotype',
-            plot = html_string
+            content = html_string
         )
