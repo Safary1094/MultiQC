@@ -10,47 +10,71 @@ import numpy as np
 
 
 from multiqc.modules.base_module import BaseMultiqcModule
-from multiqc import config
+
 from multiqc.plots import table, scatter, heatmap
 from collections import OrderedDict
-from ngs_utils.bcbio import BcbioProject
-from ngs_reporting.reference_data import get_key_genes_file
-import xml.etree.ElementTree as ET
+
 
 class MultiqcModule(BaseMultiqcModule):
 
-    def makeVolcanoData(self, data_key):
-
-        data = {}
-
-        for d in data_key.iterrows():
-
-            point = {}
-            point['x'] = d[1]['lfc']
-            point['y'] = d[1]['p']
-
-            if abs(d[1]['p']) > 1 and abs(d[1]['lfc']) > 1:
-                point['color'] = '#b2df8a'
-            else:
-                point['color'] = '#1f78b4'
-
-            data[d[1]['gene']] = point
-
-        return data
-
     def addVolcano(self, de):
-        data = []
-        contrast = []
-        for cont in de:
-            data.append(self.makeVolcanoData(de[cont]))
-            contrast.append({'name': cont})
 
-        config = {'data_labels': contrast}
+        data = []
+        buttons = []
+        i=0
+        first_title=''
+        for c in de:
+            vis=False
+            if i==0:
+                first_title = c
+                vis = True
+
+            low_p = de[c].loc[de[c]['p']<=0.1]
+            hi_p = de[c].loc[de[c]['p'] > 0.1]
+
+            data.append(go.Scatter(x=low_p['lfc'].tolist(),
+                                   y=low_p['p'].tolist(),
+                                   mode = 'markers',
+                                   text=de[c]['gene'].tolist(),
+                                   name='p value < 0.1',
+                                   marker={'color':'#33CFA5'},
+                                   visible=vis))
+
+            data.append(go.Scatter(x=hi_p['lfc'].tolist(),
+                                   y=hi_p['p'].tolist(),
+                                   mode = 'markers',
+                                   text=de[c]['gene'].tolist(),
+                                   name='p value > 0.1',
+                                   marker={'color': '#F06A6A'},
+                                   visible=vis))
+
+            vis_list = [False] * 2 * len(de)
+            vis_list[i * 2]=True
+            vis_list[i * 2 + 1] = True
+
+            i+=1
+
+            buttons.append({'label':c, 'method':'update', 'args':[{'visible':vis_list},{'title':c}]})
+
+        updatemenus = [{'type':"buttons",
+                        'active':-1,
+                        'buttons':buttons}]
+
+
+
+        layout = go.Layout(xaxis=dict(title='Log2 fold change'),
+                           yaxis=dict(title='p value'),
+                           height=700,
+                           updatemenus=updatemenus,
+                           title=first_title)
+        fig = go.Figure(data=data, layout=layout)
+
+        tab_content = py.offline.plot(fig, auto_open=False, output_type='div', include_plotlyjs=False)
 
         self.add_section(
             name='Volcano',
             anchor='Volcano',
-            content=scatter.plot(data, config)
+            content=tab_content
         )
 
     def addNumDE_perContrast(self, de):
